@@ -234,4 +234,13 @@ fn main() {
     }).collect::<Vec<_>>();
 
     // dbg!(allowed_snh);
+
+    let rr = strip_search(ww, hh - 6, |x, y| {
+        pat0.contains(&(x, y + 3))
+    }, |x, y, live, snh| {
+        allowed_snh[x as usize][(y + 3) as usize][if live { 1 } else { 0 }][snh]
+    });
+
+    dbg!(&pat0);
+    dbg!(rr);
 }
