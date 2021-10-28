@@ -33,25 +33,25 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
     }).collect()
 }
 
-fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
+fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
     eprintln!("Strip searching:");
     for y in 0..hh {
         let s = (0..ww).map(|x| {
-            if fixed(x, y) { '*' } else { '.' }
+            if get_pat0(x, y) { '*' } else { '.' }
         }).collect::<String>();
         eprintln!("   {}", s);
     }
 
     for y in 0..hh {
         for x in 0..2 {
-            assert!(!fixed(x, y));
+            assert!(!get_pat0(x, y));
         }
     }
 
     let c_outers = (0..ww).map(|x| {
         let mut c_outer = 0usize;
         for &y in &[0, 1, hh - 2, hh - 1] {
-            if fixed(x, y) {
+            if !is_rotor(x, y) && get_pat0(x, y) {
                 c_outer |= (1 << y);
             }
         }
@@ -67,6 +67,12 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
             'c2: for c2_inner in 0..(1 << ((2 * (hh - 4)) as usize)) {
                 let c2 = c_outers[x as usize] | (c2_inner << 2);
+
+                for y in 0..hh {
+                    if c2 & (1 << y) != 0 && is_rotor(x, y) {
+                        continue 'c2;
+                    }
+                }
 
                 for y in 1..(hh - 1) {
                     let live = (c1 & (1 << y)) != 0;
@@ -237,6 +243,8 @@ fn main() {
 
     let rr = strip_search(ww, hh - 6, |x, y| {
         pat0.contains(&(x, y + 3))
+    }, |x, y| {
+        is_rotor[x as usize][(y + 3) as usize]
     }, |x, y, live, snh| {
         allowed_snh[x as usize][(y + 3) as usize][if live { 1 } else { 0 }][snh]
     });
