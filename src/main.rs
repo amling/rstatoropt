@@ -248,12 +248,12 @@ fn main() {
 
     // dbg!(allowed_snh);
 
-    let rr = strip_search(ww, hh - 6, |x, y| {
-        pat0.contains(&(x, y + 3))
+    let rr = strip_search(ww, hh - 4, |x, y| {
+        pat0.contains(&(x, y + 2))
     }, |x, y| {
-        is_rotor[x as usize][(y + 3) as usize]
+        is_rotor[x as usize][(y + 2) as usize]
     }, |x, y, live, snh| {
-        allowed_snh[x as usize][(y + 3) as usize][if live { 1 } else { 0 }][snh]
+        allowed_snh[x as usize][(y + 2) as usize][if live { 1 } else { 0 }][snh]
     });
 
     dbg!(&pat0);
