@@ -1,5 +1,6 @@
 #![allow(unused_parens)]
 
+use bitintr::Pdep;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::BufRead;
@@ -58,6 +59,18 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         c_outer
     }).collect::<Vec<_>>();
 
+    let c_inner_masks = (0..ww).map(|x| {
+        (2..(hh - 2)).filter(|&y| {
+            !is_rotor(x, y)
+        }).map(|y| {
+            1 << y
+        }).sum::<u64>()
+    }).collect::<Vec<_>>();
+
+    let c_raw_lens = c_inner_masks.iter().map(|&mask| {
+        mask.count_ones()
+    }).collect::<Vec<_>>();
+
     let mut rr: HashMap<(usize, usize), _> = HashMap::new();
     rr.insert((0, 0), (0, vec![]));
 
@@ -65,14 +78,8 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         eprintln!("x = {}, rr.len() = {}", x, rr.len());
         let mut rr2 = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
-            'c2: for c2_inner in 0..(1 << ((hh - 4) as usize)) {
-                let c2 = c_outers[x as usize] | (c2_inner << 2);
-
-                for y in 0..hh {
-                    if c2 & (1 << y) != 0 && is_rotor(x, y) {
-                        continue 'c2;
-                    }
-                }
+            'c2: for c2_raw in 0..(1 << c_raw_lens[x as usize]) {
+                let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
 
                 for y in 1..(hh - 1) {
                     let live = (c1 & (1 << y)) != 0;
