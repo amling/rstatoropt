@@ -78,10 +78,10 @@ fn main() {
             let w = max_x - min_x + 1;
             let h = max_y - min_y + 1;
             (
-                min_x - w,
-                max_x + w,
-                min_y - h,
-                max_y + h,
+                min_x - w + 2,
+                max_x + w + 2,
+                min_y - h + 2,
+                max_y + h + 2,
             )
         };
 
