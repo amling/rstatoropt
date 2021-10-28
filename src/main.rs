@@ -65,4 +65,34 @@ fn main() {
     };
 
     // dbg!(pats);
+
+    let (pats, ww, hh) = {
+        let (bb_min_x, bb_max_x, bb_min_y, bb_max_y) = {
+            let all_cells: HashSet<_> = pats.iter().flat_map(|pat| {
+                pat.iter().map(|&p| p)
+            }).collect();
+            let min_x = all_cells.iter().map(|&(x, _)| x).min().unwrap();
+            let max_x = all_cells.iter().map(|&(x, _)| x).max().unwrap();
+            let min_y = all_cells.iter().map(|&(_, y)| y).min().unwrap();
+            let max_y = all_cells.iter().map(|&(_, y)| y).max().unwrap();
+            let w = max_x - min_x + 1;
+            let h = max_y - min_y + 1;
+            (
+                min_x - w,
+                max_x + w,
+                min_y - h,
+                max_y + h,
+            )
+        };
+
+        (
+            pats.into_iter().map(|pat| {
+                pat.into_iter().map(|(x, y)| (x - bb_min_x, y - bb_min_y)).collect::<HashSet<_>>()
+            }).collect::<Vec<_>>(),
+            (bb_max_x - bb_min_x + 1),
+            (bb_max_y - bb_min_y + 1),
+        )
+    };
+
+    // dbg!(pats, ww, hh);
 }
