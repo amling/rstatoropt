@@ -8,6 +8,7 @@ edition = "2018"
 bitintr = "=0.3.0"
 chrono = "=0.4.11"
 itertools = "=0.10.1"
+rand = "=0.8.4"
 
 [profile.release]
 lto = true

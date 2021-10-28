@@ -2,6 +2,7 @@
 
 use bitintr::Pdep;
 use chrono::Local;
+use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::BufRead;
@@ -267,17 +268,55 @@ fn main() {
     // dbg!(&allowed_snh);
 
     let mut args = std::env::args().skip(1);
-    let search_height = args.next().unwrap().parse().unwrap();
+    let search_height: isize = args.next().unwrap().parse().unwrap();
 
-    let rr = debug_time("demo search", || {
-        strip_search(ww, search_height, |x, y| {
-            pat0.contains(&(x, y))
-        }, |x, y| {
-            is_rotor[x as usize][y as usize]
-        }, |x, y, live, snh| {
-            allowed_snh[x as usize][y as usize][if live { 1 } else { 0 }][snh]
-        });
-    });
+    let mut pat1 = pat0;
+    loop {
+        let mut search_start = rand::thread_rng().gen_range(0..(search_height + 2));
+        loop {
+            let search_end = search_start + search_height + 4;
 
-    // dbg!(rr);
+            if search_end > hh {
+                break;
+            }
+
+            let st0 = pat1.iter().filter(|&&(x, y)| {
+                !is_rotor[x as usize][y as usize] && search_start <= y && y < search_end
+            }).collect::<HashSet<_>>();
+
+            let st1 = strip_search(ww, search_height + 4, |x, y| {
+                pat1.contains(&(x, y + search_start))
+            }, |x, y| {
+                is_rotor[x as usize][(y + search_start) as usize]
+            }, |x, y, live, snh| {
+                allowed_snh[x as usize][(y + search_start) as usize][if live { 1 } else { 0 }][snh]
+            }).into_iter().map(|(x, y)| {
+                (x, y + search_start)
+            }).collect::<HashSet<_>>();
+
+            assert!(st1.len() <= st0.len());
+
+            if st1.len() < st0.len() {
+                eprintln!("Want to replace...");
+                for y in search_start..search_end {
+                    let s = (0..ww).map(|x| {
+                        if is_rotor[x as usize][y as usize] {
+                            return 'R';
+                        }
+                        match (st0.contains(&(x, y)), st1.contains(&(x, y))) {
+                            (true, true) => '*',
+                            (true, false) => 'x',
+                            (false, true) => 'o',
+                            (false, false) => '.',
+                        }
+                    }).collect::<String>();
+                    eprintln!("   {}", s);
+                }
+
+                panic!();
+            }
+
+            search_start = search_end - 2;
+        }
+    }
 }
