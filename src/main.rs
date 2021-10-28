@@ -5,8 +5,8 @@ use std::io;
 
 fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
     let check: HashSet<_> = pat.iter().flat_map(|&(x, y)| {
-        (-1..2).flat_map(move |dx| {
-            (-1..2).map(move |dy| {
+        (-1..=1).flat_map(move |dx| {
+            (-1..=1).map(move |dy| {
                 (x + dx, y + dy)
             })
         })
@@ -14,8 +14,8 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
 
     check.into_iter().filter(|&(x2, y2)| {
         let live = pat.contains(&(x2, y2));
-        let nh: usize = (-1..2).map(|dx| {
-            (-1..2).filter(|dy| {
+        let nh: usize = (-1..=1).map(|dx| {
+            (-1..=1).filter(|dy| {
                 pat.contains(&(x2 + dx, y2 + dy))
             }).count()
         }).sum();
