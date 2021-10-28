@@ -69,19 +69,16 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
                     }
                 }
 
-                let ct2 = ct + (c0.count_ones() as usize);
-                let mut cols2 = cols.clone();
-                cols2.push(c0);
-
-                if let Some(p) = rr2.get_mut(&(c1, c2)) {
-                    if ct2 < p.0 {
-                        p.0 = ct2;
-                        p.1 = cols2;
+                let ct_next = ct + (c0.count_ones() as usize);
+                if let Some(&(ct_already, _)) = rr2.get(&(c1, c2)) {
+                    if ct_already <= ct_next {
+                        continue 'c2;
                     }
                 }
-                else {
-                    rr2.insert((c1, c2), (ct2, cols2));
-                }
+
+                let mut cols_next = cols.clone();
+                cols_next.push(c0);
+                rr2.insert((c1, c2), (ct_next, cols_next));
             }
         }
         rr = rr2;
