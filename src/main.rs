@@ -96,22 +96,13 @@ fn main() {
 
     // dbg!(pats, ww, hh);
 
-    let mut rotor_cells = HashSet::new();
-    let mut stator_cells = HashSet::new();
-    for x in 0..ww {
-        for y in 0..hh {
-            let min = pats.iter().map(|pat| pat.contains(&(x, y))).min();
-            let max = pats.iter().map(|pat| pat.contains(&(x, y))).max();
-            if min == max {
-                stator_cells.insert((x, y));
-            }
-            else {
-                rotor_cells.insert((x, y));
-            }
-        }
-    }
-    let rotor_cells = rotor_cells;
-    let stator_cells = stator_cells;
+    let is_rotor = (0..ww).map(|x| {
+        (0..hh).map(|y| {
+            let min = pats.iter().map(|pat| pat.contains(&(x, y))).min().unwrap();
+            let max = pats.iter().map(|pat| pat.contains(&(x, y))).max().unwrap();
+            min != max
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
 
-    // dbg!(rotor_cells, stator_cells);
+    // dbg!(is_rotor);
 }
