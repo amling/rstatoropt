@@ -266,14 +266,18 @@ fn main() {
     });
     // dbg!(&allowed_snh);
 
-    let rr = strip_search(ww, 6, |x, y| {
-        pat0.contains(&(x, y))
-    }, |x, y| {
-        is_rotor[x as usize][y as usize]
-    }, |x, y, live, snh| {
-        allowed_snh[x as usize][y as usize][if live { 1 } else { 0 }][snh]
+    let mut args = std::env::args().skip(1);
+    let search_height = args.next().unwrap().parse().unwrap();
+
+    let rr = debug_time("demo search", || {
+        strip_search(ww, search_height, |x, y| {
+            pat0.contains(&(x, y))
+        }, |x, y| {
+            is_rotor[x as usize][y as usize]
+        }, |x, y, live, snh| {
+            allowed_snh[x as usize][y as usize][if live { 1 } else { 0 }][snh]
+        });
     });
 
-    dbg!(&pat0);
-    dbg!(rr);
+    // dbg!(rr);
 }
