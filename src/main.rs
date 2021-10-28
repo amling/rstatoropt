@@ -113,43 +113,46 @@ fn main() {
     let allowed_snh = (0..ww).map(|x| {
         (0..hh).map(|y| {
             [false, true].iter().map(|&live| {
-                if is_rotor[x as usize][y as usize] {
-                    if live {
-                        (0..=9).map(|_| false).collect::<Vec<_>>()
+                // these triples are: (current liveness, rotor neighborhoos cell count, future liveness)
+                let triples = pats.iter().enumerate().map(|(i, pat)| {
+                    let fpat = &pats[(i + 1) % pats.len()];
+                    (
+                        pat.contains(&(x, y)),
+                        (-1..=1).map(|dx| {
+                            let x2 = x + dx;
+                            if x2 < 0 || x2 >= ww {
+                                return 0;
+                            }
+                            (-1..=1).filter(|dy| {
+                                let y2 = y + dy;
+                                if y2 < 0 || y2 >= hh {
+                                    return false;
+                                }
+                                if !is_rotor[(x2 as usize)][(y2 as usize)] {
+                                    return false;
+                                }
+                                pat.contains(&(x2, y2))
+                            }).count()
+                        }).sum::<usize>(),
+                        fpat.contains(&(x, y)),
+                    )
+                }).collect::<HashSet<_>>();
+                (0..=9).map(|snh| {
+                    if is_rotor[x as usize][y as usize] {
+                        if live {
+                            return false;
+                        }
+                        else {
+                            return triples.iter().all(|&(live, rnh, flive)| f_live(live, snh + rnh) == flive);
+                        }
                     }
                     else {
-                        let triples = pats.iter().enumerate().map(|(i, pat)| {
-                            let fpat = &pats[(i + 1) % pats.len()];
-                            (
-                                pat.contains(&(x, y)),
-                                (-1..=1).map(|dx| {
-                                    (-1..=1).filter(|dy| {
-                                        is_rotor[((x + dx) as usize)][((y + dy) as usize)] && pat.contains(&(x + dx, y + dy))
-                                    }).count()
-                                }).sum::<usize>(),
-                                fpat.contains(&(x, y)),
-                            )
-                        }).collect::<HashSet<_>>();
-                        (0..=9).map(|snh| {
-                            triples.iter().all(|&(live, rnh, flive)| f_live(live, snh + rnh) == flive)
-                        }).collect::<Vec<_>>()
+                        return triples.iter().all(|&(_, rnh, _)| f_live(live, snh + rnh) == live);
                     }
-                }
-                else {
-                    let rnhs = pats.iter().map(|pat| {
-                        (-1..=1).map(|dx| {
-                            (-1..=1).filter(|dy| {
-                                is_rotor[((x + dx) as usize)][((y + dy) as usize)] && pat.contains(&(x + dx, y + dy))
-                            }).count()
-                        }).sum::<usize>()
-                    }).collect::<HashSet<_>>();
-                    (0..=9).map(|snh| {
-                        rnhs.iter().all(|&rnh| f_live(live, snh + rnh) == live)
-                    }).collect::<Vec<_>>()
-                }
+                }).collect::<Vec<_>>()
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>()
     }).collect::<Vec<_>>();
 
-    dbg!(allowed_snh);
+    // dbg!(allowed_snh);
 }
