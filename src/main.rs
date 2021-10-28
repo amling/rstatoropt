@@ -64,7 +64,7 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
                     let mask = 7 << (y - 1);
                     let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
                     let snh = snh as usize;
-                    if !allowed_snh(x, y, live, snh) {
+                    if !allowed_snh(x - 1, y, live, snh) {
                         continue 'c2;
                     }
                 }
