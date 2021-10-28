@@ -140,7 +140,7 @@ fn main() {
 
     // dbg!(pats);
 
-    let (pats, ww, hh) = {
+    let (pat0, pats, ww, hh) = {
         let (bb_min_x, bb_max_x, bb_min_y, bb_max_y) = {
             let all_cells: HashSet<_> = pats.iter().flat_map(|pat| {
                 pat.iter().map(|&p| p)
@@ -159,10 +159,13 @@ fn main() {
             )
         };
 
+        let shift_pat = |pat: HashSet<(isize, isize)>| {
+            pat.into_iter().map(|(x, y)| (x - bb_min_x, y - bb_min_y)).collect::<HashSet<_>>()
+        };
+
         (
-            pats.into_iter().map(|pat| {
-                pat.into_iter().map(|(x, y)| (x - bb_min_x, y - bb_min_y)).collect::<HashSet<_>>()
-            }).collect::<Vec<_>>(),
+            shift_pat(pat0),
+            pats.into_iter().map(shift_pat).collect::<Vec<_>>(),
             (bb_max_x - bb_min_x + 1),
             (bb_max_y - bb_min_y + 1),
         )
