@@ -56,7 +56,7 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
     for x in 2..ww {
         let mut rr2: HashMap<(usize, usize), (usize, Vec<usize>)> = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
-            'c2: for c2_inner in 0..(1 << ((2 * hh - 4) as usize)) {
+            'c2: for c2_inner in 0..(1 << ((2 * (hh - 4)) as usize)) {
                 let c2 = c_outers[x as usize] | (c2_inner << 2);
 
                 for y in 1..(hh - 1) {
@@ -152,9 +152,9 @@ fn main() {
             let w = max_x - min_x + 1;
             let h = max_y - min_y + 1;
             (
-                min_x - w + 2,
+                min_x - w - 2,
                 max_x + w + 2,
-                min_y - h + 2,
+                min_y - h - 2,
                 max_y + h + 2,
             )
         };
