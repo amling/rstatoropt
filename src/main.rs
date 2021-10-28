@@ -1,10 +1,25 @@
 #![allow(unused_parens)]
 
 use bitintr::Pdep;
+use chrono::Local;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::BufRead;
 use std::io;
+
+pub fn debug_log(msg: impl AsRef<str>) {
+    let msg = msg.as_ref();
+    eprintln!("{} - {}", Local::now().format("%Y%m%d %H:%M:%S"), msg);
+}
+
+pub fn debug_time<T>(label: impl AsRef<str>, cb: impl FnOnce() -> T) -> T {
+    let label = label.as_ref();
+    let t0 = std::time::Instant::now();
+    debug_log(format!("Starting {}...", label));
+    let ret = cb();
+    debug_log(format!("Finished {}: {:?}", label, t0.elapsed()));
+    return ret;
+}
 
 fn f_live(live: bool, nh: usize) -> bool {
     match live {
@@ -121,21 +136,25 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
 }
 
 fn main() {
-    let mut pat0 = HashSet::new();
-    for (y, line) in io::stdin().lock().lines().enumerate() {
-        let line = line.unwrap();
-        for (x, c) in line.chars().enumerate() {
-            match c {
-                '.' => {},
-                '*' => {
-                    pat0.insert((x as isize, y as isize));
-                },
-                _ => panic!(),
+    let pat0 = debug_time("parse pat0", || {
+        let mut pat0 = HashSet::new();
+        for (y, line) in io::stdin().lock().lines().enumerate() {
+            let line = line.unwrap();
+            for (x, c) in line.chars().enumerate() {
+                match c {
+                    '.' => {},
+                    '*' => {
+                        pat0.insert((x as isize, y as isize));
+                    },
+                    _ => panic!(),
+                }
             }
         }
-    }
+        pat0
+    });
+    // dbg!(&pat0);
 
-    let pats = {
+    let pats = debug_time("detect period", || {
         let mut pats = vec![];
         let mut pat_t = HashMap::new();
         let mut pat = pat0.clone();
@@ -153,13 +172,11 @@ fn main() {
 
             pat = step_pat(&pat);
         }
-
         pats
-    };
+    });
+    // dbg!(&pats);
 
-    // dbg!(pats);
-
-    let (pat0, pats, ww, hh) = {
+    let (pat0, pats, ww, hh) = debug_time("bounding box", || {
         let (bb_min_x, bb_max_x, bb_min_y, bb_max_y) = {
             let all_cells: HashSet<_> = pats.iter().flat_map(|pat| {
                 pat.iter().map(|&p| p)
@@ -188,72 +205,73 @@ fn main() {
             (bb_max_x - bb_min_x + 1),
             (bb_max_y - bb_min_y + 1),
         )
-    };
+    });
+    // dbg!(ww, hh);
 
-    // dbg!(pats, ww, hh);
-
-    let is_rotor = (0..ww).map(|x| {
-        (0..hh).map(|y| {
-            let min = pats.iter().map(|pat| pat.contains(&(x, y))).min().unwrap();
-            let max = pats.iter().map(|pat| pat.contains(&(x, y))).max().unwrap();
-            min != max
+    let is_rotor = debug_time("is_rotor", || {
+        (0..ww).map(|x| {
+            (0..hh).map(|y| {
+                let min = pats.iter().map(|pat| pat.contains(&(x, y))).min().unwrap();
+                let max = pats.iter().map(|pat| pat.contains(&(x, y))).max().unwrap();
+                min != max
+            }).collect::<Vec<_>>()
         }).collect::<Vec<_>>()
-    }).collect::<Vec<_>>();
+    });
+    // dbg!(&is_rotor);
 
-    // dbg!(is_rotor);
-
-    let allowed_snh = (0..ww).map(|x| {
-        (0..hh).map(|y| {
-            [false, true].iter().map(|&live| {
-                // these triples are: (current liveness, rotor neighborhoos cell count, future liveness)
-                let triples = pats.iter().enumerate().map(|(i, pat)| {
-                    let fpat = &pats[(i + 1) % pats.len()];
-                    (
-                        pat.contains(&(x, y)),
-                        (-1..=1).map(|dx| {
-                            let x2 = x + dx;
-                            if x2 < 0 || x2 >= ww {
-                                return 0;
+    let allowed_snh = debug_time("allowed_snh", || {
+        (0..ww).map(|x| {
+            (0..hh).map(|y| {
+                [false, true].iter().map(|&live| {
+                    // these triples are: (current liveness, rotor neighborhoos cell count, future liveness)
+                    let triples = pats.iter().enumerate().map(|(i, pat)| {
+                        let fpat = &pats[(i + 1) % pats.len()];
+                        (
+                            pat.contains(&(x, y)),
+                            (-1..=1).map(|dx| {
+                                let x2 = x + dx;
+                                if x2 < 0 || x2 >= ww {
+                                    return 0;
+                                }
+                                (-1..=1).filter(|dy| {
+                                    let y2 = y + dy;
+                                    if y2 < 0 || y2 >= hh {
+                                        return false;
+                                    }
+                                    if !is_rotor[(x2 as usize)][(y2 as usize)] {
+                                        return false;
+                                    }
+                                    pat.contains(&(x2, y2))
+                                }).count()
+                            }).sum::<usize>(),
+                            fpat.contains(&(x, y)),
+                        )
+                    }).collect::<HashSet<_>>();
+                    (0..=9).map(|snh| {
+                        if is_rotor[x as usize][y as usize] {
+                            if live {
+                                return false;
                             }
-                            (-1..=1).filter(|dy| {
-                                let y2 = y + dy;
-                                if y2 < 0 || y2 >= hh {
-                                    return false;
-                                }
-                                if !is_rotor[(x2 as usize)][(y2 as usize)] {
-                                    return false;
-                                }
-                                pat.contains(&(x2, y2))
-                            }).count()
-                        }).sum::<usize>(),
-                        fpat.contains(&(x, y)),
-                    )
-                }).collect::<HashSet<_>>();
-                (0..=9).map(|snh| {
-                    if is_rotor[x as usize][y as usize] {
-                        if live {
-                            return false;
+                            else {
+                                return triples.iter().all(|&(live, rnh, flive)| f_live(live, snh + rnh) == flive);
+                            }
                         }
                         else {
-                            return triples.iter().all(|&(live, rnh, flive)| f_live(live, snh + rnh) == flive);
+                            return triples.iter().all(|&(_, rnh, _)| f_live(live, snh + rnh) == live);
                         }
-                    }
-                    else {
-                        return triples.iter().all(|&(_, rnh, _)| f_live(live, snh + rnh) == live);
-                    }
+                    }).collect::<Vec<_>>()
                 }).collect::<Vec<_>>()
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>()
-    }).collect::<Vec<_>>();
+    });
+    // dbg!(&allowed_snh);
 
-    // dbg!(allowed_snh);
-
-    let rr = strip_search(ww, hh - 4, |x, y| {
-        pat0.contains(&(x, y + 2))
+    let rr = strip_search(ww, 6, |x, y| {
+        pat0.contains(&(x, y))
     }, |x, y| {
-        is_rotor[x as usize][(y + 2) as usize]
+        is_rotor[x as usize][y as usize]
     }, |x, y, live, snh| {
-        allowed_snh[x as usize][(y + 2) as usize][if live { 1 } else { 0 }][snh]
+        allowed_snh[x as usize][y as usize][if live { 1 } else { 0 }][snh]
     });
 
     dbg!(&pat0);
