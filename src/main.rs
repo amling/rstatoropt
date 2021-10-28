@@ -65,7 +65,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         eprintln!("x = {}, rr.len() = {}", x, rr.len());
         let mut rr2 = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
-            'c2: for c2_inner in 0..(1 << ((2 * (hh - 4)) as usize)) {
+            'c2: for c2_inner in 0..(1 << ((hh - 4) as usize)) {
                 let c2 = c_outers[x as usize] | (c2_inner << 2);
 
                 for y in 0..hh {
