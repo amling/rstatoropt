@@ -3,6 +3,13 @@ use std::collections::HashSet;
 use std::io::BufRead;
 use std::io;
 
+fn f_live(live: bool, nh: usize) -> bool {
+    match live {
+        true => (nh == 3 || nh == 4),
+        false => (nh == 3),
+    }
+}
+
 fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
     let check: HashSet<_> = pat.iter().flat_map(|&(x, y)| {
         (-1..=1).flat_map(move |dx| {
@@ -20,10 +27,7 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
             }).count()
         }).sum();
 
-        match live {
-            true => (nh == 3 || nh == 4),
-            false => (nh == 3),
-        }
+        f_live(live, nh)
     }).collect()
 }
 
@@ -105,4 +109,47 @@ fn main() {
     }).collect::<Vec<_>>();
 
     // dbg!(is_rotor);
+
+    let allowed_snh = (0..ww).map(|x| {
+        (0..hh).map(|y| {
+            [false, true].iter().map(|&live| {
+                if is_rotor[x as usize][y as usize] {
+                    if live {
+                        (0..=9).map(|_| false).collect::<Vec<_>>()
+                    }
+                    else {
+                        let triples = pats.iter().enumerate().map(|(i, pat)| {
+                            let fpat = &pats[(i + 1) % pats.len()];
+                            (
+                                pat.contains(&(x, y)),
+                                (-1..=1).map(|dx| {
+                                    (-1..=1).filter(|dy| {
+                                        is_rotor[((x + dx) as usize)][((y + dy) as usize)] && pat.contains(&(x + dx, y + dy))
+                                    }).count()
+                                }).sum::<usize>(),
+                                fpat.contains(&(x, y)),
+                            )
+                        }).collect::<HashSet<_>>();
+                        (0..=9).map(|snh| {
+                            triples.iter().all(|&(live, rnh, flive)| f_live(live, snh + rnh) == flive)
+                        }).collect::<Vec<_>>()
+                    }
+                }
+                else {
+                    let rnhs = pats.iter().map(|pat| {
+                        (-1..=1).map(|dx| {
+                            (-1..=1).filter(|dy| {
+                                is_rotor[((x + dx) as usize)][((y + dy) as usize)] && pat.contains(&(x + dx, y + dy))
+                            }).count()
+                        }).sum::<usize>()
+                    }).collect::<HashSet<_>>();
+                    (0..=9).map(|snh| {
+                        rnhs.iter().all(|&rnh| f_live(live, snh + rnh) == live)
+                    }).collect::<Vec<_>>()
+                }
+            }).collect::<Vec<_>>()
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+
+    dbg!(allowed_snh);
 }
