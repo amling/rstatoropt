@@ -50,11 +50,11 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
         c_outer
     }).collect::<Vec<_>>();
 
-    let mut rr: HashMap<(usize, usize), (usize, Vec<usize>)> = HashMap::new();
+    let mut rr: HashMap<(usize, usize), _> = HashMap::new();
     rr.insert((0, 0), (0, vec![]));
 
     for x in 2..ww {
-        let mut rr2: HashMap<(usize, usize), (usize, Vec<usize>)> = HashMap::new();
+        let mut rr2 = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
             'c2: for c2_inner in 0..(1 << ((2 * (hh - 4)) as usize)) {
                 let c2 = c_outers[x as usize] | (c2_inner << 2);
