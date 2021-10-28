@@ -34,6 +34,14 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
 }
 
 fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
+    eprintln!("Strip searching:");
+    for y in 0..hh {
+        let s = (0..ww).map(|x| {
+            if fixed(x, y) { '*' } else { '.' }
+        }).collect::<String>();
+        eprintln!("   {}", s);
+    }
+
     for y in 0..hh {
         for x in 0..2 {
             assert!(!fixed(x, y));
@@ -54,6 +62,7 @@ fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allo
     rr.insert((0, 0), (0, vec![]));
 
     for x in 2..ww {
+        eprintln!("x = {}, rr.len() = {}", x, rr.len());
         let mut rr2 = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
             'c2: for c2_inner in 0..(1 << ((2 * (hh - 4)) as usize)) {
