@@ -1,3 +1,5 @@
+#![allow(unused_parens)]
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::BufRead;
@@ -29,6 +31,74 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
 
         f_live(live, nh)
     }).collect()
+}
+
+fn strip_search(ww: isize, hh: isize, fixed: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
+    for y in 0..hh {
+        for x in 0..2 {
+            assert!(!fixed(x, y));
+        }
+    }
+
+    let c_outers = (0..ww).map(|x| {
+        let mut c_outer = 0usize;
+        for &y in &[0, 1, hh - 2, hh - 1] {
+            if fixed(x, y) {
+                c_outer |= (1 << y);
+            }
+        }
+        c_outer
+    }).collect::<Vec<_>>();
+
+    let mut rr: HashMap<(usize, usize), (usize, Vec<usize>)> = HashMap::new();
+    rr.insert((0, 0), (0, vec![]));
+
+    for x in 2..ww {
+        let mut rr2: HashMap<(usize, usize), (usize, Vec<usize>)> = HashMap::new();
+        for ((c0, c1), (ct, cols)) in rr.into_iter() {
+            'c2: for c2_inner in 0..(1 << ((2 * hh - 4) as usize)) {
+                let c2 = c_outers[x as usize] | (c2_inner << 2);
+
+                for y in 1..(hh - 1) {
+                    let live = (c1 & (1 << y)) != 0;
+                    let mask = 7 << (y - 1);
+                    let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
+                    let snh = snh as usize;
+                    if !allowed_snh(x, y, live, snh) {
+                        continue 'c2;
+                    }
+                }
+
+                let ct2 = ct + (c0.count_ones() as usize);
+                let mut cols2 = cols.clone();
+                cols2.push(c0);
+
+                if let Some(p) = rr2.get_mut(&(c1, c2)) {
+                    if ct2 < p.0 {
+                        p.0 = ct2;
+                        p.1 = cols2;
+                    }
+                }
+                else {
+                    rr2.insert((c1, c2), (ct2, cols2));
+                }
+            }
+        }
+        rr = rr2;
+    }
+
+    match rr.get(&(0, 0)) {
+        Some(&(_, ref cols)) => {
+            cols.iter().enumerate().flat_map(|(x, col)| {
+                (0..hh).filter(move |&y| {
+                    (col & (1 << y)) != 0
+                }).map(move |y| {
+                    (x as isize, y)
+                })
+            }).collect()
+        },
+        None => panic!(),
+    }
 }
 
 fn main() {
