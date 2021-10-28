@@ -4,6 +4,9 @@ version = "1.0.0"
 authors = ["Keith Amling <me@amling2.org>"]
 edition = "2018"
 
+[dependencies]
+itertools = "=0.10.1"
+
 [profile.release]
 lto = true
 debug = true
