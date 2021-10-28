@@ -280,10 +280,6 @@ fn main() {
                 break;
             }
 
-            let st0 = pat1.iter().filter(|&&(x, y)| {
-                !is_rotor[x as usize][y as usize] && search_start <= y && y < search_end
-            }).collect::<HashSet<_>>();
-
             let st1 = strip_search(ww, search_height + 4, |x, y| {
                 pat1.contains(&(x, y + search_start))
             }, |x, y| {
@@ -294,9 +290,18 @@ fn main() {
                 (x, y + search_start)
             }).collect::<HashSet<_>>();
 
-            assert!(st1.len() <= st0.len());
+            let pat2 = (0..ww).flat_map(|x| {
+                (0..hh).filter(|y| {
+                    if y < search_start || y >= search_end || is_rotor[x as usize][y as usize] {
+                        return pat1.contains(&(x, y));
+                    }
+                    st1.contains(&(x, y))
+                }.map(|y| {
+                    (x, y)
+                })
+            }).collect::<HashSet<_>>();
 
-            if st1.len() < st0.len() {
+            if pat2.len() < pat1.len() {
                 eprintln!("Want to replace...");
                 for y in search_start..search_end {
                     let s = (0..ww).map(|x| {
