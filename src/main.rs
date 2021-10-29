@@ -280,7 +280,7 @@ fn main() {
             for search_start in search_starts {
                 let search_end = search_start + search_max + 4;
 
-                let st1 = debug_time(format!("Searching horizontal stripe [{}, {})", search_start, search_end), || {
+                let st1 = debug_time(format!("horizontal stripe [{}, {})", search_start, search_end), || {
                     strip_search(ww, search_max + 4, |x, y| {
                         pat1.contains(&(x, y + search_start))
                     }, |x, y| {
@@ -361,7 +361,7 @@ fn main() {
             for search_start in search_starts {
                 let search_end = search_start + search_max + 4;
 
-                let st1 = debug_time(format!("Searching vertical stripe [{}, {})", search_start, search_end), || {
+                let st1 = debug_time(format!("vertical stripe [{}, {})", search_start, search_end), || {
                     strip_search(hh, search_max + 4, |y, x| {
                         pat1.contains(&(x + search_start, y))
                     }, |y, x| {
