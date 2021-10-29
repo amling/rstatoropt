@@ -1,0 +1,2 @@
+this basically works, but is definitely getting trapped in local optima :(
+e.g.  2.in currently gets 719 but earlier randomly ordered horizontal jiggerpokery found a 718
