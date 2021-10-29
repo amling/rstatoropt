@@ -269,6 +269,8 @@ fn main() {
 
     let mut pat1 = pat0;
     loop {
+        let mut progress = false;
+
         // horizontal stripes
         for search_start in 0..=(hh - (search_max + 4)) {
             let search_end = search_start + search_max + 4;
@@ -341,7 +343,12 @@ fn main() {
                 }
 
                 pat1 = pat2;
+                progress = true;
             }
+        }
+
+        if !progress {
+            break;
         }
     }
 }
