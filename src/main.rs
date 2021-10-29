@@ -2,7 +2,6 @@
 
 use bitintr::Pdep;
 use chrono::Local;
-use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::BufRead;
@@ -270,23 +269,21 @@ fn main() {
 
     let mut pat1 = pat0;
     loop {
-        let mut search_start = rand::thread_rng().gen_range(0..(search_max + 2));
-        loop {
+        // horizontal stripes
+        for search_start in 0..=(hh - (search_max + 4)) {
             let search_end = search_start + search_max + 4;
 
-            if search_end > hh {
-                break;
-            }
-
-            let st1 = strip_search(ww, search_max + 4, |x, y| {
-                pat1.contains(&(x, y + search_start))
-            }, |x, y| {
-                is_rotor[x as usize][(y + search_start) as usize]
-            }, |x, y, live, snh| {
-                allowed_snh[x as usize][(y + search_start) as usize][if live { 1 } else { 0 }][snh]
-            }).into_iter().map(|(x, y)| {
-                (x, y + search_start)
-            }).collect::<HashSet<_>>();
+            let st1 = debug_time(format!("Searching horizontal stripes [{}, {})", search_start, search_end), || {
+                strip_search(ww, search_max + 4, |x, y| {
+                    pat1.contains(&(x, y + search_start))
+                }, |x, y| {
+                    is_rotor[x as usize][(y + search_start) as usize]
+                }, |x, y, live, snh| {
+                    allowed_snh[x as usize][(y + search_start) as usize][if live { 1 } else { 0 }][snh]
+                }).into_iter().map(|(x, y)| {
+                    (x, y + search_start)
+                }).collect::<HashSet<_>>()
+            });
 
             let pat2 = (0..ww).flat_map(|x| {
                 let is_rotor = &is_rotor;
@@ -345,8 +342,6 @@ fn main() {
 
                 pat1 = pat2;
             }
-
-            search_start = search_end - 2;
         }
     }
 }
