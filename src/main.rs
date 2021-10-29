@@ -275,7 +275,7 @@ fn main() {
         for search_start in 0..=(hh - (search_max + 4)) {
             let search_end = search_start + search_max + 4;
 
-            let st1 = debug_time(format!("Searching horizontal stripes [{}, {})", search_start, search_end), || {
+            let st1 = debug_time(format!("Searching horizontal stripe [{}, {})", search_start, search_end), || {
                 strip_search(ww, search_max + 4, |x, y| {
                     pat1.contains(&(x, y + search_start))
                 }, |x, y| {
@@ -340,6 +340,74 @@ fn main() {
                         }
                     }).collect::<String>();
                     eprintln!("   {}", s);
+                }
+
+                pat1 = pat2;
+                progress = true;
+            }
+        }
+
+        // vertical stripes
+        for search_start in 0..=(ww - (search_max + 4)) {
+            let search_end = search_start + search_max + 4;
+
+            let st1 = debug_time(format!("Searching vertical stripe [{}, {})", search_start, search_end), || {
+                strip_search(hh, search_max + 4, |y, x| {
+                    pat1.contains(&(x + search_start, y))
+                }, |y, x| {
+                    is_rotor[(x + search_start) as usize][y as usize]
+                }, |y, x, live, snh| {
+                    allowed_snh[(x + search_start) as usize][y as usize][if live { 1 } else { 0 }][snh]
+                }).into_iter().map(|(y, x)| {
+                    (x + search_start, y)
+                }).collect::<HashSet<_>>()
+            });
+
+            let pat2 = (0..ww).flat_map(|x| {
+                let is_rotor = &is_rotor;
+                let pat1 = &pat1;
+                let st1 = &st1;
+                (0..hh).filter(move |&y| {
+                    if x < search_start || x >= search_end || is_rotor[x as usize][y as usize] {
+                        return pat1.contains(&(x, y));
+                    }
+                    st1.contains(&(x, y))
+                }).map(move |y| {
+                    (x, y)
+                })
+            }).collect::<HashSet<_>>();
+
+            if pat2.len() < pat1.len() {
+                eprintln!("Replace: {} -> {}", pat1.len(), pat2.len());
+                for y in 0..hh {
+                    let s1 = (0..(search_start + 2)).map(|x| {
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
+                            (true, false) => 'r',
+                            (true, true) => 'R',
+                            (false, false) => '.',
+                            (false, true) => '*',
+                        }
+                    }).collect::<String>();
+                    let s2 = ((search_start + 2)..(search_end - 2)).map(|x| {
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
+                            (true, false, false) => 'r',
+                            (true, true, true) => 'R',
+                            (false, true, true) => '*',
+                            (false, true, false) => 'x',
+                            (false, false, true) => 'o',
+                            (false, false, false) => '.',
+                            _ => panic!(),
+                        }
+                    }).collect::<String>();
+                    let s3 = ((search_end - 2)..ww).map(|x| {
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
+                            (true, false) => 'r',
+                            (true, true) => 'R',
+                            (false, false) => '.',
+                            (false, true) => '*',
+                        }
+                    }).collect::<String>();
+                    eprintln!("   {}|{}|{}", s1, s2, s3);
                 }
 
                 pat1 = pat2;
