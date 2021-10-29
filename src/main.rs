@@ -291,12 +291,15 @@ fn main() {
             }).collect::<HashSet<_>>();
 
             let pat2 = (0..ww).flat_map(|x| {
-                (0..hh).filter(|y| {
+                let is_rotor = &is_rotor;
+                let pat1 = &pat1;
+                let st1 = &st1;
+                (0..hh).filter(move |&y| {
                     if y < search_start || y >= search_end || is_rotor[x as usize][y as usize] {
                         return pat1.contains(&(x, y));
                     }
                     st1.contains(&(x, y))
-                }.map(|y| {
+                }).map(move |y| {
                     (x, y)
                 })
             }).collect::<HashSet<_>>();
@@ -308,7 +311,7 @@ fn main() {
                         if is_rotor[x as usize][y as usize] {
                             return 'R';
                         }
-                        match (st0.contains(&(x, y)), st1.contains(&(x, y))) {
+                        match (pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
                             (true, true) => '*',
                             (true, false) => 'x',
                             (false, true) => 'o',
