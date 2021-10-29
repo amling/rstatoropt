@@ -51,13 +51,13 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
 }
 
 fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
-    eprintln!("Strip searching:");
-    for y in 0..hh {
-        let s = (0..ww).map(|x| {
-            if get_pat0(x, y) { '*' } else { '.' }
-        }).collect::<String>();
-        eprintln!("   {}", s);
-    }
+    // eprintln!("Strip searching:");
+    // for y in 0..hh {
+    //     let s = (0..ww).map(|x| {
+    //         if get_pat0(x, y) { '*' } else { '.' }
+    //     }).collect::<String>();
+    //     eprintln!("   {}", s);
+    // }
 
     for y in 0..hh {
         for x in 0..2 {
@@ -91,7 +91,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
     rr.insert((0, 0), (0, vec![]));
 
     for x in 2..ww {
-        eprintln!("x = {}, rr.len() = {}", x, rr.len());
+        // debug_log(format!("x = {}, rr.len() = {}", x, rr.len()));
         let mut rr2 = HashMap::new();
         for ((c0, c1), (ct, cols)) in rr.into_iter() {
             'c2: for c2_raw in 0..(1 << c_raw_lens[x as usize]) {
@@ -137,6 +137,9 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
 }
 
 fn main() {
+    let mut args = std::env::args().skip(1);
+    let search_max: isize = args.next().unwrap().parse().unwrap();
+
     let pat0 = debug_time("parse pat0", || {
         let mut pat0 = HashSet::new();
         for (y, line) in io::stdin().lock().lines().enumerate() {
@@ -186,13 +189,11 @@ fn main() {
             let max_x = all_cells.iter().map(|&(x, _)| x).max().unwrap();
             let min_y = all_cells.iter().map(|&(_, y)| y).min().unwrap();
             let max_y = all_cells.iter().map(|&(_, y)| y).max().unwrap();
-            let w = max_x - min_x + 1;
-            let h = max_y - min_y + 1;
             (
-                min_x - w - 2,
-                max_x + w + 2,
-                min_y - h - 2,
-                max_y + h + 2,
+                min_x - search_max - 1,
+                max_x + search_max + 1,
+                min_y - search_max - 1,
+                max_y + search_max + 1,
             )
         };
 
@@ -267,20 +268,17 @@ fn main() {
     });
     // dbg!(&allowed_snh);
 
-    let mut args = std::env::args().skip(1);
-    let search_height: isize = args.next().unwrap().parse().unwrap();
-
     let mut pat1 = pat0;
     loop {
-        let mut search_start = rand::thread_rng().gen_range(0..(search_height + 2));
+        let mut search_start = rand::thread_rng().gen_range(0..(search_max + 2));
         loop {
-            let search_end = search_start + search_height + 4;
+            let search_end = search_start + search_max + 4;
 
             if search_end > hh {
                 break;
             }
 
-            let st1 = strip_search(ww, search_height + 4, |x, y| {
+            let st1 = strip_search(ww, search_max + 4, |x, y| {
                 pat1.contains(&(x, y + search_start))
             }, |x, y| {
                 is_rotor[x as usize][(y + search_start) as usize]
@@ -305,23 +303,47 @@ fn main() {
             }).collect::<HashSet<_>>();
 
             if pat2.len() < pat1.len() {
-                eprintln!("Want to replace...");
-                for y in search_start..search_end {
+                eprintln!("Replace: {} -> {}", pat1.len(), pat2.len());
+                for y in 0..(search_start + 2) {
                     let s = (0..ww).map(|x| {
-                        if is_rotor[x as usize][y as usize] {
-                            return 'R';
-                        }
-                        match (pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
-                            (true, true) => '*',
-                            (true, false) => 'x',
-                            (false, true) => 'o',
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
+                            (true, false) => 'r',
+                            (true, true) => 'R',
                             (false, false) => '.',
+                            (false, true) => '*',
+                        }
+                    }).collect::<String>();
+                    eprintln!("   {}", s);
+                }
+                eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
+                for y in (search_start + 2)..(search_end - 2) {
+                    let s = (0..ww).map(|x| {
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
+                            (true, false, false) => 'r',
+                            (true, true, true) => 'R',
+                            (false, true, true) => '*',
+                            (false, true, false) => 'x',
+                            (false, false, true) => 'o',
+                            (false, false, false) => '.',
+                            _ => panic!(),
+                        }
+                    }).collect::<String>();
+                    eprintln!("   {}", s);
+                }
+                eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
+                for y in (search_end - 2)..hh {
+                    let s = (0..ww).map(|x| {
+                        match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
+                            (true, false) => 'r',
+                            (true, true) => 'R',
+                            (false, false) => '.',
+                            (false, true) => '*',
                         }
                     }).collect::<String>();
                     eprintln!("   {}", s);
                 }
 
-                panic!();
+                pat1 = pat2;
             }
 
             search_start = search_end - 2;
