@@ -430,4 +430,17 @@ fn main() {
             break;
         }
     }
+
+    eprintln!("Final: {}", pat1.len());
+    for y in 0..hh {
+        let s = (0..ww).map(|x| {
+            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
+                (true, false) => 'r',
+                (true, true) => 'R',
+                (false, false) => '.',
+                (false, true) => '*',
+            }
+        }).collect::<String>();
+        eprintln!("   {}", s);
+    }
 }
