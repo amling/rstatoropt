@@ -12,4 +12,3 @@ perf ideas?
         if we instead do c2 on the outside we don't have to assemble cols_next except for the actual winner
             we just track best c0 (and maybe pointer to data for it) and then deal with it at the end
         this might also let us easily/quickly parallelize over c2
-    "live" bool could probably be 1-bit integer since we're converting both from that and back to that

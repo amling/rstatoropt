@@ -22,11 +22,9 @@ pub fn debug_time<T>(label: impl AsRef<str>, cb: impl FnOnce() -> T) -> T {
     return ret;
 }
 
-fn f_live(live: bool, nh: usize) -> bool {
-    match live {
-        true => (nh == 3 || nh == 4),
-        false => (nh == 3),
-    }
+fn f_live(live: usize, nh: usize) -> bool {
+    let magic_ct = 2 * nh + 1 - live;
+    6 <= magic_ct && magic_ct <= 8
 }
 
 fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
@@ -46,11 +44,11 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
             }).count()
         }).sum();
 
-        f_live(live, nh)
+        f_live(if live { 1 } else { 0 }, nh)
     }).collect()
 }
 
-fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, bool, usize) -> bool) -> HashSet<(isize, isize)> {
+fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, usize, usize) -> bool) -> HashSet<(isize, isize)> {
     // eprintln!("Strip searching:");
     // for y in 0..hh {
     //     let s = (0..ww).map(|x| {
@@ -98,7 +96,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
                 let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
 
                 for y in 1..(hh - 1) {
-                    let live = (c1 & (1 << y)) != 0;
+                    let live = (c1 >> y) & 1;
                     let mask = 7 << (y - 1);
                     let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
                     let snh = snh as usize;
@@ -224,12 +222,12 @@ fn main() {
     let allowed_snh = debug_time("allowed_snh", || {
         (0..ww).map(|x| {
             (0..hh).map(|y| {
-                [false, true].iter().map(|&live| {
+                (0..=1).map(|live| {
                     // these triples are: (current liveness, rotor neighborhoos cell count, future liveness)
                     let triples = pats.iter().enumerate().map(|(i, pat)| {
                         let fpat = &pats[(i + 1) % pats.len()];
                         (
-                            pat.contains(&(x, y)),
+                            if pat.contains(&(x, y)) { 1 } else { 0 },
                             (-1..=1).map(|dx| {
                                 let x2 = x + dx;
                                 if x2 < 0 || x2 >= ww {
@@ -251,7 +249,7 @@ fn main() {
                     }).collect::<HashSet<_>>();
                     (0..=9).map(|snh| {
                         if is_rotor[x as usize][y as usize] {
-                            if live {
+                            if live != 0 {
                                 return false;
                             }
                             else {
@@ -259,7 +257,7 @@ fn main() {
                             }
                         }
                         else {
-                            return triples.iter().all(|&(_, rnh, _)| f_live(live, snh + rnh) == live);
+                            return triples.iter().all(|&(_, rnh, _)| f_live(live, snh + rnh) == (live != 0));
                         }
                     }).collect::<Vec<_>>()
                 }).collect::<Vec<_>>()
@@ -286,7 +284,7 @@ fn main() {
                     }, |x, y| {
                         is_rotor[x as usize][(y + search_start) as usize]
                     }, |x, y, live, snh| {
-                        allowed_snh[x as usize][(y + search_start) as usize][if live { 1 } else { 0 }][snh]
+                        allowed_snh[x as usize][(y + search_start) as usize][live][snh]
                     }).into_iter().map(|(x, y)| {
                         (x, y + search_start)
                     }).collect::<HashSet<_>>()
@@ -367,7 +365,7 @@ fn main() {
                     }, |y, x| {
                         is_rotor[(x + search_start) as usize][y as usize]
                     }, |y, x, live, snh| {
-                        allowed_snh[(x + search_start) as usize][y as usize][if live { 1 } else { 0 }][snh]
+                        allowed_snh[(x + search_start) as usize][y as usize][live][snh]
                     }).into_iter().map(|(y, x)| {
                         (x + search_start, y)
                     }).collect::<HashSet<_>>()
