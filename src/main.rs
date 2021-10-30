@@ -120,14 +120,25 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     }
                 };
                 let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
+
+                let mut allowed_snh_precomp2 = vec![false; (hh as usize) * (1 << 2)];
+                for y in 1..(hh - 1) {
+                    for c2_snh in 0..=3 {
+                        let live = (c1 >> y) & 1;
+                        let mask = 7 << (y - 1);
+                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + c2_snh;
+                        allowed_snh_precomp2[((y as usize) << 2) | (c2_snh as usize)] = allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)];
+                    }
+                }
+                let allowed_snh_precomp2 = allowed_snh_precomp2;
+
                 'c2: for c2_raw in 0..(1 << c2_raw_len) {
                     let c2 = c2_outer | (c2_raw.pdep(c2_inner_mask) as usize);
 
                     for y in 1..(hh - 1) {
-                        let live = (c1 >> y) & 1;
                         let mask = 7 << (y - 1);
-                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
-                        if !allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)] {
+                        let c2_snh = (c2 & mask).count_ones();
+                        if !allowed_snh_precomp2[((y as usize) << 2) | (c2_snh as usize)] {
                             continue 'c2;
                         }
                     }
