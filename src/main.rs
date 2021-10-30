@@ -111,11 +111,11 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let allowed_snh_precomp = allowed_snh_precomp;
         for c0_raw in 0..(1 << c0_raw_len) {
             let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
-            'c1: for c1_raw in 0..(1 << c1_raw_len) {
+            for c1_raw in 0..(1 << c1_raw_len) {
                 let (ct, cols) = match &rr[((c0_raw << c1_raw_len) | c1_raw) as usize] {
                     Some(r) => r,
                     None => {
-                        continue 'c1;
+                        continue;
 
                     }
                 };
