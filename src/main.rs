@@ -85,13 +85,15 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         mask.count_ones()
     }).collect::<Vec<_>>();
 
-    let mut rr: HashMap<(usize, usize), _> = HashMap::new();
+    let mut rr: HashMap<(u64, u64), _> = HashMap::new();
     rr.insert((0, 0), (0, vec![]));
 
     for x in 2..ww {
         // debug_log(format!("x = {}, rr.len() = {}", x, rr.len()));
         let mut rr2 = HashMap::new();
-        for ((c0, c1), (ct, cols)) in rr.into_iter() {
+        for ((c0_raw, c1_raw), (ct, cols)) in rr.into_iter() {
+            let c0 = c_outers[(x - 2) as usize] | (c0_raw.pdep(c_inner_masks[(x - 2) as usize]) as usize);
+            let c1 = c_outers[(x - 1) as usize] | (c1_raw.pdep(c_inner_masks[(x - 1) as usize]) as usize);
             'c2: for c2_raw in 0..(1 << c_raw_lens[x as usize]) {
                 let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
 
@@ -106,7 +108,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
                 }
 
                 let ct_next = ct + (c0.count_ones() as usize);
-                if let Some(&(ct_already, _)) = rr2.get(&(c1, c2)) {
+                if let Some(&(ct_already, _)) = rr2.get(&(c1_raw, c2_raw)) {
                     if ct_already <= ct_next {
                         continue 'c2;
                     }
@@ -114,7 +116,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
 
                 let mut cols_next = cols.clone();
                 cols_next.push(c0);
-                rr2.insert((c1, c2), (ct_next, cols_next));
+                rr2.insert((c1_raw, c2_raw), (ct_next, cols_next));
             }
         }
         rr = rr2;
