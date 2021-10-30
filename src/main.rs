@@ -48,7 +48,7 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
     }).collect()
 }
 
-fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize, usize, usize) -> bool) -> HashSet<(isize, isize)> {
+fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize) -> &'a Vec<Vec<bool>>) -> HashSet<(isize, isize)> {
     // eprintln!("Strip searching:");
     // for y in 0..hh {
     //     let s = (0..ww).map(|x| {
@@ -94,6 +94,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         let c1_raw_len = c_raw_lens[(x - 1) as usize];
         let c2_raw_len = c_raw_lens[x as usize];
         let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
+        let allowed_snh = (1..(hh - 1)).map(|y| allowed_snh(x - 1, y)).collect::<Vec<_>>();
         for c0_raw in 0..(1 << c0_raw_len) {
             let c0 = c_outers[(x - 2) as usize] | (c0_raw.pdep(c_inner_masks[(x - 2) as usize]) as usize);
             'c1: for c1_raw in 0..(1 << c1_raw_len) {
@@ -113,7 +114,7 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
                         let mask = 7 << (y - 1);
                         let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
                         let snh = snh as usize;
-                        if !allowed_snh(x - 1, y, live, snh) {
+                        if !allowed_snh[(y - 1) as usize][live][snh] {
                             continue 'c2;
                         }
                     }
@@ -298,8 +299,8 @@ fn main() {
                         pat1.contains(&(x, y + search_start))
                     }, |x, y| {
                         is_rotor[x as usize][(y + search_start) as usize]
-                    }, |x, y, live, snh| {
-                        allowed_snh[x as usize][(y + search_start) as usize][live][snh]
+                    }, |x, y| {
+                        &allowed_snh[x as usize][(y + search_start) as usize]
                     }).into_iter().map(|(x, y)| {
                         (x, y + search_start)
                     }).collect::<HashSet<_>>()
@@ -379,8 +380,8 @@ fn main() {
                         pat1.contains(&(x + search_start, y))
                     }, |y, x| {
                         is_rotor[(x + search_start) as usize][y as usize]
-                    }, |y, x, live, snh| {
-                        allowed_snh[(x + search_start) as usize][y as usize][live][snh]
+                    }, |y, x| {
+                        &allowed_snh[(x + search_start) as usize][y as usize]
                     }).into_iter().map(|(y, x)| {
                         (x + search_start, y)
                     }).collect::<HashSet<_>>()
