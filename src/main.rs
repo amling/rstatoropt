@@ -121,8 +121,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                         let live = (c1 >> y) & 1;
                         let mask = 7 << (y - 1);
                         let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
-                        let snh = snh as usize;
-                        if !allowed_snh_precomp[((y as usize) << 5) | (live << 4) | snh] {
+                        if !allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)] {
                             continue 'c2;
                         }
                     }
