@@ -178,6 +178,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
 
 fn main() {
     let mut args = std::env::args().skip(1);
+    let bb_pad: isize = args.next().unwrap().parse().unwrap();
     let search_max: isize = args.next().unwrap().parse().unwrap();
 
     let pat0 = debug_time("parse pat0", || {
@@ -230,10 +231,10 @@ fn main() {
             let min_y = all_cells.iter().map(|&(_, y)| y).min().unwrap();
             let max_y = all_cells.iter().map(|&(_, y)| y).max().unwrap();
             (
-                min_x - search_max - 1,
-                max_x + search_max + 1,
-                min_y - search_max - 1,
-                max_y + search_max + 1,
+                min_x - bb_pad - 2,
+                max_x + bb_pad + 2,
+                min_y - bb_pad - 2,
+                max_y + bb_pad + 2,
             )
         };
 
