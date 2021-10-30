@@ -93,6 +93,12 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let c0_raw_len = c_raw_lens[(x - 2) as usize];
         let c1_raw_len = c_raw_lens[(x - 1) as usize];
         let c2_raw_len = c_raw_lens[x as usize];
+        let c0_outer = c_outers[(x - 2) as usize];
+        let c1_outer = c_outers[(x - 1) as usize];
+        let c2_outer = c_outers[x as usize];
+        let c0_inner_mask = c_inner_masks[(x - 2) as usize];
+        let c1_inner_mask = c_inner_masks[(x - 1) as usize];
+        let c2_inner_mask = c_inner_masks[x as usize];
         let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
         let mut allowed_snh_precomp = vec![false; (hh as usize) * (1 << 5)];
         for y in (1..(hh - 1)) {
@@ -104,7 +110,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         }
         let allowed_snh_precomp = allowed_snh_precomp;
         for c0_raw in 0..(1 << c0_raw_len) {
-            let c0 = c_outers[(x - 2) as usize] | (c0_raw.pdep(c_inner_masks[(x - 2) as usize]) as usize);
+            let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
             'c1: for c1_raw in 0..(1 << c1_raw_len) {
                 let (ct, cols) = match &rr[((c0_raw << c1_raw_len) | c1_raw) as usize] {
                     Some(r) => r,
@@ -113,9 +119,9 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
 
                     }
                 };
-                let c1 = c_outers[(x - 1) as usize] | (c1_raw.pdep(c_inner_masks[(x - 1) as usize]) as usize);
+                let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
                 'c2: for c2_raw in 0..(1 << c2_raw_len) {
-                    let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
+                    let c2 = c2_outer | (c2_raw.pdep(c2_inner_mask) as usize);
 
                     for y in 1..(hh - 1) {
                         let live = (c1 >> y) & 1;
