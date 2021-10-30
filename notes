@@ -3,10 +3,6 @@ e.g.  2.in currently gets 719 but earlier randomly ordered horizontal jiggerpoke
 random was able to get 718 even with search_max=5
 
 perf ideas?
-    change HashMap<(isize, isize), _> to Vec<Option<_>>
-        Option<> is fine since we don't think we're memory constrained
-        we need to key by just non-rotor, non-edge bits of each column
-        similar to how we have c2_raw right now, the key should be bit concat of c0_raw and c1_raw
     reorder loops
         right now it's c0+c1 pair, then c2
         if we instead do c2 on the outside we don't have to assemble cols_next except for the actual winner

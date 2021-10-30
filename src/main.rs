@@ -85,45 +85,58 @@ fn strip_search(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, i
         mask.count_ones()
     }).collect::<Vec<_>>();
 
-    let mut rr: HashMap<(u64, u64), _> = HashMap::new();
-    rr.insert((0, 0), (0, vec![]));
+    let mut rr = vec![None; 1 << (c_raw_lens[0] + c_raw_lens[1])];
+    rr[0] = Some((0, vec![]));
 
     for x in 2..ww {
         // debug_log(format!("x = {}, rr.len() = {}", x, rr.len()));
-        let mut rr2 = HashMap::new();
-        for ((c0_raw, c1_raw), (ct, cols)) in rr.into_iter() {
+        let c0_raw_len = c_raw_lens[(x - 2) as usize];
+        let c1_raw_len = c_raw_lens[(x - 1) as usize];
+        let c2_raw_len = c_raw_lens[x as usize];
+        let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
+        for c0_raw in 0..(1 << c0_raw_len) {
             let c0 = c_outers[(x - 2) as usize] | (c0_raw.pdep(c_inner_masks[(x - 2) as usize]) as usize);
-            let c1 = c_outers[(x - 1) as usize] | (c1_raw.pdep(c_inner_masks[(x - 1) as usize]) as usize);
-            'c2: for c2_raw in 0..(1 << c_raw_lens[x as usize]) {
-                let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
+            'c1: for c1_raw in 0..(1 << c1_raw_len) {
+                let (ct, cols) = match &rr[((c0_raw << c1_raw_len) | c1_raw) as usize] {
+                    Some(r) => r,
+                    None => {
+                        continue 'c1;
 
-                for y in 1..(hh - 1) {
-                    let live = (c1 >> y) & 1;
-                    let mask = 7 << (y - 1);
-                    let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
-                    let snh = snh as usize;
-                    if !allowed_snh(x - 1, y, live, snh) {
-                        continue 'c2;
                     }
-                }
+                };
+                let c1 = c_outers[(x - 1) as usize] | (c1_raw.pdep(c_inner_masks[(x - 1) as usize]) as usize);
+                'c2: for c2_raw in 0..(1 << c2_raw_len) {
+                    let c2 = c_outers[x as usize] | (c2_raw.pdep(c_inner_masks[x as usize]) as usize);
 
-                let ct_next = ct + (c0.count_ones() as usize);
-                if let Some(&(ct_already, _)) = rr2.get(&(c1_raw, c2_raw)) {
-                    if ct_already <= ct_next {
-                        continue 'c2;
+                    for y in 1..(hh - 1) {
+                        let live = (c1 >> y) & 1;
+                        let mask = 7 << (y - 1);
+                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
+                        let snh = snh as usize;
+                        if !allowed_snh(x - 1, y, live, snh) {
+                            continue 'c2;
+                        }
                     }
-                }
 
-                let mut cols_next = cols.clone();
-                cols_next.push(c0);
-                rr2.insert((c1_raw, c2_raw), (ct_next, cols_next));
+                    let ct_next = ct + (c0.count_ones() as usize);
+                    let p = &mut rr2[((c1_raw << c2_raw_len) | c2_raw) as usize];
+                    if let &mut Some((ct_already, _)) = p {
+                        if ct_already <= ct_next {
+                            continue 'c2;
+                        }
+                    }
+
+                    let mut cols_next = cols.clone();
+                    cols_next.push(c0);
+                    *p = Some((ct_next, cols_next));
+                }
             }
         }
         rr = rr2;
     }
 
-    match rr.get(&(0, 0)) {
-        Some(&(_, ref cols)) => {
+    match &rr[0] {
+        &Some((_, ref cols)) => {
             cols.iter().enumerate().flat_map(|(x, col)| {
                 (0..hh).filter(move |&y| {
                     (col & (1 << y)) != 0
