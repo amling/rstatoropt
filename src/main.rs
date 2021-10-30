@@ -134,19 +134,21 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
 
                     let ct_next = ct + (c0.count_ones() as usize);
                     let p = &mut rr2[((c1_raw << c2_raw_len) | c2_raw) as usize];
-                    if let &mut Some((ct_already, _)) = p {
+                    if let &mut Some((ct_already, _, _)) = p {
                         if ct_already <= ct_next {
                             continue 'c2;
                         }
                     }
 
-                    let mut cols_next = cols.clone();
-                    cols_next.push(c0);
-                    *p = Some((ct_next, cols_next));
+                    *p = Some((ct_next, cols, c0));
                 }
             }
         }
-        rr = rr2;
+        rr = rr2.into_iter().map(|r| r.map(|(ct_next, cols, c0)| {
+            let mut cols_next = cols.clone();
+            cols_next.push(c0);
+            (ct_next, cols_next)
+        })).collect();
     }
 
     match &rr[0] {
