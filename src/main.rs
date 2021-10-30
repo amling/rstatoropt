@@ -94,7 +94,15 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let c1_raw_len = c_raw_lens[(x - 1) as usize];
         let c2_raw_len = c_raw_lens[x as usize];
         let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
-        let allowed_snh = (1..(hh - 1)).map(|y| allowed_snh(x - 1, y)).collect::<Vec<_>>();
+        let mut allowed_snh_precomp = vec![false; (hh as usize) * (1 << 5)];
+        for y in (1..(hh - 1)) {
+            for live in 0..=1 {
+                for snh in 0..=9 {
+                    allowed_snh_precomp[((y as usize) << 5) | (live << 4) | snh] = allowed_snh(x - 1, y)[live][snh];
+                }
+            }
+        }
+        let allowed_snh_precomp = allowed_snh_precomp;
         for c0_raw in 0..(1 << c0_raw_len) {
             let c0 = c_outers[(x - 2) as usize] | (c0_raw.pdep(c_inner_masks[(x - 2) as usize]) as usize);
             'c1: for c1_raw in 0..(1 << c1_raw_len) {
@@ -114,7 +122,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                         let mask = 7 << (y - 1);
                         let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + (c2 & mask).count_ones();
                         let snh = snh as usize;
-                        if !allowed_snh[(y - 1) as usize][live][snh] {
+                        if !allowed_snh_precomp[((y as usize) << 5) | (live << 4) | snh] {
                             continue 'c2;
                         }
                     }
