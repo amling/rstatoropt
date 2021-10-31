@@ -1,3 +1,0 @@
-this basically works, but is definitely getting trapped in local optima :(
-e.g.  2.in currently gets 719 but earlier randomly ordered horizontal jiggerpokery found a 718
-random was able to get 718 even with search_max=5
