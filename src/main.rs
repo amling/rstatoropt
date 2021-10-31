@@ -5,6 +5,8 @@ use chrono::Local;
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::VecDeque;
+use std::hash::Hash;
 use std::io::BufRead;
 use std::io;
 
@@ -176,6 +178,141 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
     }
 }
 
+struct Queue<T> {
+    queue: VecDeque<T>,
+    set: HashSet<T>,
+}
+
+impl<T> Queue<T> {
+    fn new() -> Self {
+        Queue {
+            queue: VecDeque::new(),
+            set: HashSet::new(),
+        }
+    }
+
+    fn add(&mut self, t: T) where T: Eq + Hash + Copy {
+        if self.set.insert(t) {
+            self.queue.push_back(t);
+        }
+    }
+
+    fn pop(&mut self) -> Option<T> where T: Eq + Hash {
+        self.queue.pop_front().map(|t| {
+            assert!(self.set.remove(&t));
+            t
+        })
+    }
+}
+
+#[derive(Clone)]
+#[derive(Copy)]
+#[derive(Eq)]
+#[derive(Hash)]
+#[derive(PartialEq)]
+enum Search {
+    HorizontalSearch(isize, isize),
+    VerticalSearch(isize, isize),
+}
+
+impl Search {
+    fn sees(&self, x: isize, y: isize) -> bool {
+        match self {
+            &Search::HorizontalSearch(start, end) => (start <= y && y <= end),
+            &Search::VerticalSearch(start, end) => (start <= x && x <= end),
+        }
+    }
+
+    fn search(&self, ww: isize, hh: isize, pat1: &HashSet<(isize, isize)>, is_rotor: &Vec<Vec<bool>>, allowed_snh: &Vec<Vec<Vec<Vec<bool>>>>) -> HashSet<(isize, isize)> {
+        match self {
+            &Search::HorizontalSearch(start, end) => {
+                let st1 = debug_time(format!("horizontal stripe [{}, {})", start, end), || {
+                    strip_search(ww, end - start, |x, y| {
+                        pat1.contains(&(x, y + start))
+                    }, |x, y| {
+                        is_rotor[x as usize][(y + start) as usize]
+                    }, |x, y| {
+                        &allowed_snh[x as usize][(y + start) as usize]
+                    }).into_iter().map(|(x, y)| {
+                        (x, y + start)
+                    }).collect::<HashSet<_>>()
+                });
+
+                let pat2 = (0..ww).flat_map(|x| {
+                    let is_rotor = &is_rotor;
+                    let pat1 = &pat1;
+                    let st1 = &st1;
+                    (0..hh).filter(move |&y| {
+                        if y < start || y >= end || is_rotor[x as usize][y as usize] {
+                            return pat1.contains(&(x, y));
+                        }
+                        st1.contains(&(x, y))
+                    }).map(move |y| {
+                        (x, y)
+                    })
+                }).collect::<HashSet<_>>();
+
+                pat2
+            },
+            &Search::VerticalSearch(start, end) => {
+                let st1 = debug_time(format!("vertical stripe [{}, {})", start, end), || {
+                    strip_search(hh, end - start, |y, x| {
+                        pat1.contains(&(x + start, y))
+                    }, |y, x| {
+                        is_rotor[(x + start) as usize][y as usize]
+                    }, |y, x| {
+                        &allowed_snh[(x + start) as usize][y as usize]
+                    }).into_iter().map(|(y, x)| {
+                        (x + start, y)
+                    }).collect::<HashSet<_>>()
+                });
+
+                let pat2 = (0..ww).flat_map(|x| {
+                    let is_rotor = &is_rotor;
+                    let pat1 = &pat1;
+                    let st1 = &st1;
+                    (0..hh).filter(move |&y| {
+                        if x < start || x >= end || is_rotor[x as usize][y as usize] {
+                            return pat1.contains(&(x, y));
+                        }
+                        st1.contains(&(x, y))
+                    }).map(move |y| {
+                        (x, y)
+                    })
+                }).collect::<HashSet<_>>();
+
+                pat2
+            },
+        }
+    }
+
+    fn display_delta(&self, ww: isize, hh: isize, display_char: impl Fn(isize, isize) -> char) {
+        match self {
+            &Search::HorizontalSearch(start, end) => {
+                for y in 0..(start + 2) {
+                    eprintln!("   {}", (0..ww).map(|x| display_char(x, y)).collect::<String>());
+                }
+                eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
+                for y in (start + 2)..(end - 2) {
+                    eprintln!("   {}", (0..ww).map(|x| display_char(x, y)).collect::<String>());
+                }
+                eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
+                for y in (end - 2)..hh {
+                    eprintln!("   {}", (0..ww).map(|x| display_char(x, y)).collect::<String>());
+                }
+            },
+            &Search::VerticalSearch(start, end) => {
+                for y in 0..hh {
+                    let s1 = (0..(start + 2)).map(|x| display_char(x, y)).collect::<String>();
+                    let s2 = ((start + 2)..(end - 2)).map(|x| display_char(x, y)).collect::<String>();
+                    let s3 = ((end - 2)..ww).map(|x| display_char(x, y)).collect::<String>();
+                    eprintln!("   {}|{}|{}", s1, s2, s3);
+                }
+            },
+        }
+    }
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let bb_pad: isize = args.next().unwrap().parse().unwrap();
@@ -309,166 +446,79 @@ fn main() {
     });
     // dbg!(&allowed_snh);
 
+    let mut all_searches = vec![];
+    for search_start in 0..=(hh - (search_max + 4)) {
+        all_searches.push(Search::HorizontalSearch(search_start, search_start + search_max + 4));
+    }
+    for search_start in 0..=(ww - (search_max + 4)) {
+        all_searches.push(Search::VerticalSearch(search_start, search_start + search_max + 4));
+    }
+    let all_searches = all_searches;
+
+
+    let mut search_updates = HashMap::new();
+    for x in 0..ww {
+        for y in 0..hh {
+            for &search in &all_searches {
+                if search.sees(x, y) {
+                    search_updates.entry((x, y)).or_insert_with(Vec::new).push(search);
+                }
+            }
+        }
+    }
+    let search_updates = search_updates;
+
+
+    let mut queue = Queue::new();
+    {
+        let mut initial_queue = all_searches.clone();
+        initial_queue.shuffle(&mut rand::thread_rng());
+        for search in initial_queue {
+            queue.add(search);
+        }
+    }
+
     let mut pat1 = pat0;
     loop {
-        let mut progress = false;
+        let search = match queue.pop() {
+            Some(search) => search,
+            None => {
+                break;
+            }
+        };
 
-        // horizontal stripes
-        {
-            let mut search_starts = (0..=(hh - (search_max + 4))).into_iter().collect::<Vec<_>>();
-            search_starts.shuffle(&mut rand::thread_rng());
+        let pat2 = search.search(ww, hh, &pat1, &is_rotor, &allowed_snh);
 
-            for search_start in search_starts {
-                let search_end = search_start + search_max + 4;
+        if pat2.len() < pat1.len() {
+            eprintln!("Replace: {} -> {}", pat1.len(), pat2.len());
+            search.display_delta(ww, hh, |x, y| {
+                match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
+                    (true, false, false) => 'r',
+                    (true, true, true) => 'R',
+                    (false, true, true) => '*',
+                    (false, true, false) => 'x',
+                    (false, false, true) => 'o',
+                    (false, false, false) => '.',
+                    _ => panic!(),
+                }
+            });
 
-                let st1 = debug_time(format!("horizontal stripe [{}, {})", search_start, search_end), || {
-                    strip_search(ww, search_max + 4, |x, y| {
-                        pat1.contains(&(x, y + search_start))
-                    }, |x, y| {
-                        is_rotor[x as usize][(y + search_start) as usize]
-                    }, |x, y| {
-                        &allowed_snh[x as usize][(y + search_start) as usize]
-                    }).into_iter().map(|(x, y)| {
-                        (x, y + search_start)
-                    }).collect::<HashSet<_>>()
-                });
-
-                let pat2 = (0..ww).flat_map(|x| {
-                    let is_rotor = &is_rotor;
-                    let pat1 = &pat1;
-                    let st1 = &st1;
-                    (0..hh).filter(move |&y| {
-                        if y < search_start || y >= search_end || is_rotor[x as usize][y as usize] {
-                            return pat1.contains(&(x, y));
-                        }
-                        st1.contains(&(x, y))
-                    }).map(move |y| {
-                        (x, y)
-                    })
-                }).collect::<HashSet<_>>();
-
-                if pat2.len() < pat1.len() {
-                    eprintln!("Replace: {} -> {}", pat1.len(), pat2.len());
-                    for y in 0..(search_start + 2) {
-                        let s = (0..ww).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
-                                (true, false) => 'r',
-                                (true, true) => 'R',
-                                (false, false) => '.',
-                                (false, true) => '*',
-                            }
-                        }).collect::<String>();
-                        eprintln!("   {}", s);
+            // decide what searches we need to repeat
+            let mut new_searches = HashSet::new();
+            for (p, searches) in search_updates.iter() {
+                if pat2.contains(&p) != pat1.contains(&p) {
+                    for &search in searches {
+                        new_searches.insert(search);
                     }
-                    eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
-                    for y in (search_start + 2)..(search_end - 2) {
-                        let s = (0..ww).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
-                                (true, false, false) => 'r',
-                                (true, true, true) => 'R',
-                                (false, true, true) => '*',
-                                (false, true, false) => 'x',
-                                (false, false, true) => 'o',
-                                (false, false, false) => '.',
-                                _ => panic!(),
-                            }
-                        }).collect::<String>();
-                        eprintln!("   {}", s);
-                    }
-                    eprintln!("   {}", (0..ww).map(|_| '-').collect::<String>());
-                    for y in (search_end - 2)..hh {
-                        let s = (0..ww).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
-                                (true, false) => 'r',
-                                (true, true) => 'R',
-                                (false, false) => '.',
-                                (false, true) => '*',
-                            }
-                        }).collect::<String>();
-                        eprintln!("   {}", s);
-                    }
-
-                    pat1 = pat2;
-                    progress = true;
                 }
             }
-        }
-
-        // vertical stripes
-        {
-            let mut search_starts = (0..=(ww - (search_max + 4))).into_iter().collect::<Vec<_>>();
-            search_starts.shuffle(&mut rand::thread_rng());
-
-            for search_start in search_starts {
-                let search_end = search_start + search_max + 4;
-
-                let st1 = debug_time(format!("vertical stripe [{}, {})", search_start, search_end), || {
-                    strip_search(hh, search_max + 4, |y, x| {
-                        pat1.contains(&(x + search_start, y))
-                    }, |y, x| {
-                        is_rotor[(x + search_start) as usize][y as usize]
-                    }, |y, x| {
-                        &allowed_snh[(x + search_start) as usize][y as usize]
-                    }).into_iter().map(|(y, x)| {
-                        (x + search_start, y)
-                    }).collect::<HashSet<_>>()
-                });
-
-                let pat2 = (0..ww).flat_map(|x| {
-                    let is_rotor = &is_rotor;
-                    let pat1 = &pat1;
-                    let st1 = &st1;
-                    (0..hh).filter(move |&y| {
-                        if x < search_start || x >= search_end || is_rotor[x as usize][y as usize] {
-                            return pat1.contains(&(x, y));
-                        }
-                        st1.contains(&(x, y))
-                    }).map(move |y| {
-                        (x, y)
-                    })
-                }).collect::<HashSet<_>>();
-
-                if pat2.len() < pat1.len() {
-                    eprintln!("Replace: {} -> {}", pat1.len(), pat2.len());
-                    for y in 0..hh {
-                        let s1 = (0..(search_start + 2)).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
-                                (true, false) => 'r',
-                                (true, true) => 'R',
-                                (false, false) => '.',
-                                (false, true) => '*',
-                            }
-                        }).collect::<String>();
-                        let s2 = ((search_start + 2)..(search_end - 2)).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y)), pat2.contains(&(x, y))) {
-                                (true, false, false) => 'r',
-                                (true, true, true) => 'R',
-                                (false, true, true) => '*',
-                                (false, true, false) => 'x',
-                                (false, false, true) => 'o',
-                                (false, false, false) => '.',
-                                _ => panic!(),
-                            }
-                        }).collect::<String>();
-                        let s3 = ((search_end - 2)..ww).map(|x| {
-                            match (is_rotor[x as usize][y as usize], pat1.contains(&(x, y))) {
-                                (true, false) => 'r',
-                                (true, true) => 'R',
-                                (false, false) => '.',
-                                (false, true) => '*',
-                            }
-                        }).collect::<String>();
-                        eprintln!("   {}|{}|{}", s1, s2, s3);
-                    }
-
-                    pat1 = pat2;
-                    progress = true;
-                }
+            let mut new_searches = new_searches.into_iter().collect::<Vec<_>>();
+            new_searches.shuffle(&mut rand::thread_rng());
+            for search in new_searches {
+                queue.add(search);
             }
-        }
 
-        if !progress {
-            break;
+            pat1 = pat2;
         }
     }
 
