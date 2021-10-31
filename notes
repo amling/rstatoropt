@@ -1,11 +1,3 @@
 this basically works, but is definitely getting trapped in local optima :(
 e.g.  2.in currently gets 719 but earlier randomly ordered horizontal jiggerpokery found a 718
 random was able to get 718 even with search_max=5
-
-perf ideas?
-    reorder loops
-        right now it's c0+c1 pair, then c2
-        if we instead do c2 on the outside we don't have to assemble cols_next except for the actual winner
-            we just track best c0 (and maybe pointer to data for it) and then deal with it at the end
-        this might also let us easily/quickly parallelize over c2
-        in original sketch of this reorder was a little slower and parallelization was then faster, but not super much (maybe 8s -> 5s)

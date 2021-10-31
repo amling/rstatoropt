@@ -3,6 +3,7 @@
 use bitintr::Pdep;
 use chrono::Local;
 use rand::seq::SliceRandom;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -101,7 +102,6 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let c0_inner_mask = c_inner_masks[(x - 2) as usize];
         let c1_inner_mask = c_inner_masks[(x - 1) as usize];
         let c2_inner_mask = c_inner_masks[x as usize];
-        let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
         let mut allowed_snh_precomp = vec![false; (hh as usize) * (1 << 5)];
         for y in (1..(hh - 1)) {
             for live in 0..=1 {
@@ -111,9 +111,13 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
             }
         }
         let allowed_snh_precomp = allowed_snh_precomp;
-        for c0_raw in 0..(1 << c0_raw_len) {
-            let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
-            for c1_raw in 0..(1 << c1_raw_len) {
+        let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
+        let rr2_chunks = rr2.chunks_mut(1 << c2_raw_len).collect::<Vec<_>>();
+        rr2_chunks.into_par_iter().enumerate().map(|(c1_raw, rr2_slice)| {
+            let c1_raw = c1_raw as u64;
+            let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
+
+            for c0_raw in 0u64..(1 << c0_raw_len) {
                 let (ct, cols) = match &rr[((c0_raw << c1_raw_len) | c1_raw) as usize] {
                     Some(r) => r,
                     None => {
@@ -121,7 +125,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
 
                     }
                 };
-                let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
+                let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
 
                 let mut allowed_snh_precomp2 = vec![false; (hh as usize) * (1 << 2)];
                 for y in 1..(hh - 1) {
@@ -146,7 +150,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     }
 
                     let ct_next = ct + (c0.count_ones() as usize);
-                    let p = &mut rr2[((c1_raw << c2_raw_len) | c2_raw) as usize];
+                    let p = &mut rr2_slice[c2_raw as usize];
                     if let &mut Some((ct_already, _, _)) = p {
                         if ct_already <= ct_next {
                             continue 'c2;
@@ -156,7 +160,8 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     *p = Some((ct_next, cols, c0));
                 }
             }
-        }
+        }).collect::<()>();
+
         rr = rr2.into_iter().map(|r| r.map(|(ct_next, cols, c0)| {
             let mut cols_next = cols.clone();
             cols_next.push(c0);
