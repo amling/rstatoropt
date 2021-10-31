@@ -8,3 +8,4 @@ perf ideas?
         if we instead do c2 on the outside we don't have to assemble cols_next except for the actual winner
             we just track best c0 (and maybe pointer to data for it) and then deal with it at the end
         this might also let us easily/quickly parallelize over c2
+        in original sketch of this reorder was a little slower and parallelization was then faster, but not super much (maybe 8s -> 5s)
