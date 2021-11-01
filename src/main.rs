@@ -128,20 +128,31 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let c0_inner_mask = c_inner_masks[(x - 2) as usize];
         let c1_inner_mask = c_inner_masks[(x - 1) as usize];
         let c2_inner_mask = c_inner_masks[x as usize];
-        let mut allowed_snh_precomp = vec![false; (hh as usize) * (1 << 5)];
-        for y in (1..(hh - 1)) {
-            for live in 0..=1 {
-                for snh in 0..=9 {
-                    allowed_snh_precomp[((y as usize) << 5) | (live << 4) | snh] = allowed_snh(x - 1, y)[live][snh];
-                }
-            }
-        }
-        let allowed_snh_precomp = allowed_snh_precomp;
+
+        let checks = (1..(hh - 1)).map(|y| {
+            let allowed = (0..=1).map(|live| {
+                (0..=9).filter(|&snh| {
+                    allowed_snh(x - 1, y)[live][snh]
+                }).map(|snh| 1 << snh).sum::<usize>()
+            }).collect::<Vec<_>>();
+            (y, allowed)
+        }).collect::<Vec<_>>();
+
         let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
         let rr2_chunks = rr2.chunks_mut(1 << c2_raw_len).collect::<Vec<_>>();
         rr2_chunks.into_par_iter().enumerate().for_each(|(c1_raw, rr2_slice)| {
             let c1_raw = c1_raw as u64;
             let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
+
+            let checks = checks.iter().map(|&(y, ref allowed)| {
+                let live = (c1 >> y) & 1;
+                let mask = 7 << (y - 1);
+                let c1_snh = (c1 & mask).count_ones();
+                let allowed = (0..=6).filter(|c02_snh| {
+                    allowed[live] & (1 << (c1_snh + c02_snh)) != 0
+                }).map(|c02_snh| 1 << c02_snh).sum::<usize>();
+                (y, allowed)
+            }).collect::<Vec<_>>();
 
             let mut best = vec![None; 1 << c2_raw_len];
             for c0_raw in 0u64..(1 << c0_raw_len) {
@@ -154,14 +165,13 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                 };
                 let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
 
-                let checks = (1..(hh - 1)).map(|y| {
-                    let live = (c1 >> y) & 1;
+                let checks = checks.iter().map(|&(y, allowed)| {
                     let mask = 7 << (y - 1);
+                    let c0_snh = (c0 & mask).count_ones();
                     let c2_snh_fixed = (c2_outer & mask).count_ones();
                     let c2_snh_raw_mask = (mask as u64).pext(c2_inner_mask);
                     let allowed = (0..=3).filter(|&c2_snh_raw| {
-                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + c2_snh_fixed + c2_snh_raw;
-                        allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)]
+                        allowed & (1 << (c0_snh + c2_snh_fixed + c2_snh_raw)) != 0
                     }).map(|c2_snh_raw| 1 << c2_snh_raw).sum::<usize>();
                     (c2_snh_raw_mask, allowed)
                 }).collect::<Vec<_>>();
