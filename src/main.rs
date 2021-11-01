@@ -142,6 +142,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
             let c1_raw = c1_raw as u64;
             let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
 
+            let mut best = vec![None; 1 << c2_raw_len];
             for c0_raw in 0u64..(1 << c0_raw_len) {
                 let (ct, cols) = match &rr[((c0_raw << c1_raw_len) | c1_raw) as usize] {
                     Some(r) => r,
@@ -175,7 +176,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     }
 
                     let ct_next = ct + (c0.count_ones() as usize);
-                    let p = &mut rr2_slice[c2_raw as usize];
+                    let p = &mut best[c2_raw as usize];
                     if let &mut Some((ct_already, _, _)) = p {
                         if ct_already <= ct_next {
                             continue 'c2;
@@ -185,12 +186,15 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     *p = Some((ct_next, cols, c0));
                 }
             }
+
+            for (r, p2) in best.into_iter().zip(rr2_slice.iter_mut()) {
+                *p2 = r.map(|(ct_next, cols, c0)| {
+                    (ct_next, cols.append(c0))
+                });
+            }
         });
 
-        rr = rr2.into_iter().map(|r| r.map(|(ct_next, cols, c0)| {
-            let cols_next = cols.append(c0);
-            (ct_next, cols_next)
-        })).collect();
+        rr = rr2;
     }
 
     match &rr[0] {
