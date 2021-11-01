@@ -144,6 +144,8 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
             let c1_raw = c1_raw as u64;
             let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
 
+            // adjust checks for c1, namely (1) remove "live" dimension and (b) update allowed snhs
+            // for contents of c1 column
             let checks = checks.iter().map(|&(y, ref allowed)| {
                 let live = (c1 >> y) & 1;
                 let mask = 7 << (y - 1);
@@ -165,6 +167,9 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                 };
                 let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
 
+                // last stop before the tight inner loop, adjust checks as hard as we can, namely
+                // (1) adjust for contents of c0 columm, (2) adjust for contexts of c2_outer, (3)
+                // remap bits of would-be mask to act on c2_raw instead of c2.
                 let checks = checks.iter().map(|&(y, allowed)| {
                     let mask = 7 << (y - 1);
                     let c0_snh = (c0 & mask).count_ones();
@@ -178,6 +183,9 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
 
                 'c2: for c2_raw in 0..(1 << c2_raw_len) {
                     for &(c2_snh_raw_mask, allowed) in checks.iter() {
+                        // We've precomputed these checks as absolutely hard as we can above, now
+                        // it's just mask out [number of] relevant bits of c2_raw and see if it's a
+                        // permitted number.
                         let c2_snh_raw = (c2_raw & c2_snh_raw_mask).count_ones();
                         if allowed & (1 << c2_snh_raw) == 0 {
                             continue 'c2;
