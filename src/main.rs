@@ -148,9 +148,9 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                 let live = (c1 >> y) & 1;
                 let mask = 7 << (y - 1);
                 let c1_snh = (c1 & mask).count_ones();
-                let allowed = (0..=6).filter(|c02_snh| {
-                    allowed[live] & (1 << (c1_snh + c02_snh)) != 0
-                }).map(|c02_snh| 1 << c02_snh).sum::<usize>();
+                let allowed = (0..=6).filter(|snh| {
+                    allowed[live] & (1 << (c1_snh + snh)) != 0
+                }).map(|snh| 1 << snh).sum::<usize>();
                 (y, allowed)
             }).collect::<Vec<_>>();
 
@@ -170,9 +170,9 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     let c0_snh = (c0 & mask).count_ones();
                     let c2_snh_fixed = (c2_outer & mask).count_ones();
                     let c2_snh_raw_mask = (mask as u64).pext(c2_inner_mask);
-                    let allowed = (0..=3).filter(|&c2_snh_raw| {
-                        allowed & (1 << (c0_snh + c2_snh_fixed + c2_snh_raw)) != 0
-                    }).map(|c2_snh_raw| 1 << c2_snh_raw).sum::<usize>();
+                    let allowed = (0..=3).filter(|&snh| {
+                        allowed & (1 << (c0_snh + c2_snh_fixed + snh)) != 0
+                    }).map(|snh| 1 << snh).sum::<usize>();
                     (c2_snh_raw_mask, allowed)
                 }).collect::<Vec<_>>();
 
