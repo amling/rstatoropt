@@ -138,7 +138,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         let allowed_snh_precomp = allowed_snh_precomp;
         let mut rr2 = vec![None; 1 << (c1_raw_len + c2_raw_len)];
         let rr2_chunks = rr2.chunks_mut(1 << c2_raw_len).collect::<Vec<_>>();
-        rr2_chunks.into_par_iter().enumerate().map(|(c1_raw, rr2_slice)| {
+        rr2_chunks.into_par_iter().enumerate().for_each(|(c1_raw, rr2_slice)| {
             let c1_raw = c1_raw as u64;
             let c1 = c1_outer | (c1_raw.pdep(c1_inner_mask) as usize);
 
@@ -185,7 +185,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                     *p = Some((ct_next, cols, c0));
                 }
             }
-        }).collect::<()>();
+        });
 
         rr = rr2.into_iter().map(|r| r.map(|(ct_next, cols, c0)| {
             let cols_next = cols.append(c0);
