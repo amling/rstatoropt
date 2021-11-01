@@ -10,6 +10,7 @@ use std::collections::VecDeque;
 use std::hash::Hash;
 use std::io::BufRead;
 use std::io;
+use std::sync::Arc;
 
 pub fn debug_log(msg: impl AsRef<str>) {
     let msg = msg.as_ref();
@@ -51,6 +52,30 @@ fn step_pat(pat: &HashSet<(isize, isize)>) -> HashSet<(isize, isize)> {
     }).collect()
 }
 
+#[derive(Clone)]
+struct ColList(Arc<Option<(ColList, usize)>>);
+
+impl ColList {
+    pub fn new() -> Self {
+        ColList(Arc::new(None))
+    }
+
+    pub fn append(&self, col: usize) -> Self {
+        ColList(Arc::new(Some((self.clone(), col))))
+    }
+
+    pub fn materialize(&self) -> Vec<usize> {
+        match *self.0 {
+            None => vec![],
+            Some((ref prev, col)) => {
+                let mut r = prev.materialize();
+                r.push(col);
+                r
+            },
+        }
+    }
+}
+
 fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> bool, is_rotor: impl Fn(isize, isize) -> bool, allowed_snh: impl Fn(isize, isize) -> &'a Vec<Vec<bool>>) -> HashSet<(isize, isize)> {
     // eprintln!("Strip searching:");
     // for y in 0..hh {
@@ -89,7 +114,7 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
     }).collect::<Vec<_>>();
 
     let mut rr = vec![None; 1 << (c_raw_lens[0] + c_raw_lens[1])];
-    rr[0] = Some((0, vec![]));
+    rr[0] = Some((0, ColList::new()));
 
     for x in 2..ww {
         // debug_log(format!("x = {}, rr.len() = {}", x, rr.len()));
@@ -163,15 +188,14 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
         }).collect::<()>();
 
         rr = rr2.into_iter().map(|r| r.map(|(ct_next, cols, c0)| {
-            let mut cols_next = cols.clone();
-            cols_next.push(c0);
+            let cols_next = cols.append(c0);
             (ct_next, cols_next)
         })).collect();
     }
 
     match &rr[0] {
         &Some((_, ref cols)) => {
-            cols.iter().enumerate().flat_map(|(x, col)| {
+            cols.materialize().into_iter().enumerate().flat_map(|(x, col)| {
                 (0..hh).filter(move |&y| {
                     (col & (1 << y)) != 0
                 }).map(move |y| {
