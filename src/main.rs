@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 
 use bitintr::Pdep;
+use bitintr::Pext;
 use chrono::Local;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
@@ -153,24 +154,22 @@ fn strip_search<'a>(ww: isize, hh: isize, get_pat0: impl Fn(isize, isize) -> boo
                 };
                 let c0 = c0_outer | (c0_raw.pdep(c0_inner_mask) as usize);
 
-                let mut allowed_snh_precomp2 = vec![false; (hh as usize) * (1 << 2)];
-                for y in 1..(hh - 1) {
+                let checks = (1..(hh - 1)).map(|y| {
                     let live = (c1 >> y) & 1;
                     let mask = 7 << (y - 1);
-                    for c2_snh in 0..=3 {
-                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + c2_snh;
-                        allowed_snh_precomp2[((y as usize) << 2) | (c2_snh as usize)] = allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)];
-                    }
-                }
-                let allowed_snh_precomp2 = allowed_snh_precomp2;
+                    let c2_snh_fixed = (c2_outer & mask).count_ones();
+                    let c2_snh_raw_mask = (mask as u64).pext(c2_inner_mask);
+                    let allowed = (0..=3).filter(|&c2_snh_raw| {
+                        let snh = (c0 & mask).count_ones() + (c1 & mask).count_ones() + c2_snh_fixed + c2_snh_raw;
+                        allowed_snh_precomp[((y as usize) << 5) | (live << 4) | (snh as usize)]
+                    }).map(|c2_snh_raw| 1 << c2_snh_raw).sum::<usize>();
+                    (c2_snh_raw_mask, allowed)
+                }).collect::<Vec<_>>();
 
                 'c2: for c2_raw in 0..(1 << c2_raw_len) {
-                    let c2 = c2_outer | (c2_raw.pdep(c2_inner_mask) as usize);
-
-                    for y in 1..(hh - 1) {
-                        let mask = 7 << (y - 1);
-                        let c2_snh = (c2 & mask).count_ones();
-                        if !allowed_snh_precomp2[((y as usize) << 2) | (c2_snh as usize)] {
+                    for &(c2_snh_raw_mask, allowed) in checks.iter() {
+                        let c2_snh_raw = (c2_raw & c2_snh_raw_mask).count_ones();
+                        if allowed & (1 << c2_snh_raw) == 0 {
                             continue 'c2;
                         }
                     }
