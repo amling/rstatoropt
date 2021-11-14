@@ -497,11 +497,21 @@ fn main() {
     // dbg!(&allowed_snh);
 
     let mut all_searches = vec![];
-    for search_start in 0..=(hh - (search_max + 4)) {
-        all_searches.push(Search::HorizontalSearch(search_start, search_start + search_max + 4));
+    if search_max + 4 <= hh {
+        for search_start in 0..=(hh - (search_max + 4)) {
+            all_searches.push(Search::HorizontalSearch(search_start, search_start + search_max + 4));
+        }
     }
-    for search_start in 0..=(ww - (search_max + 4)) {
-        all_searches.push(Search::VerticalSearch(search_start, search_start + search_max + 4));
+    else {
+        all_searches.push(Search::HorizontalSearch(0, hh));
+    }
+    if search_max + 4 <= ww {
+        for search_start in 0..=(ww - (search_max + 4)) {
+            all_searches.push(Search::VerticalSearch(search_start, search_start + search_max + 4));
+        }
+    }
+    else {
+        all_searches.push(Search::VerticalSearch(0, ww));
     }
     let all_searches = all_searches;
 
