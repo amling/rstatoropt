@@ -368,21 +368,31 @@ fn main() {
     let bb_pad: isize = args.next().unwrap().parse().unwrap();
     let search_max: isize = args.next().unwrap().parse().unwrap();
 
-    let pat0 = debug_time("parse pat0", || {
+    let (pat0, forced_rotors) = debug_time("parse pat0", || {
         let mut pat0 = HashSet::new();
+        let mut forced_rotors = HashSet::new();
         for (y, line) in io::stdin().lock().lines().enumerate() {
             let line = line.unwrap();
             for (x, c) in line.chars().enumerate() {
+                let p = (x as isize, y as isize);
                 match c {
-                    '.' => {},
+                    'r' => {
+                        forced_rotors.insert(p);
+                    },
+                    'R' => {
+                        pat0.insert(p);
+                        forced_rotors.insert(p);
+                    },
+                    '.' => {
+                    },
                     '*' => {
-                        pat0.insert((x as isize, y as isize));
+                        pat0.insert(p);
                     },
                     _ => panic!(),
                 }
             }
         }
-        pat0
+        (pat0, forced_rotors)
     });
     // dbg!(&pat0);
 
@@ -408,7 +418,7 @@ fn main() {
     });
     // dbg!(&pats);
 
-    let (pat0, pats, ww, hh) = debug_time("bounding box", || {
+    let (pat0, forced_rotors, pats, ww, hh) = debug_time("bounding box", || {
         let (bb_min_x, bb_max_x, bb_min_y, bb_max_y) = {
             let all_cells: HashSet<_> = pats.iter().flat_map(|pat| {
                 pat.iter().map(|&p| p)
@@ -431,6 +441,7 @@ fn main() {
 
         (
             shift_pat(pat0),
+            shift_pat(forced_rotors),
             pats.into_iter().map(shift_pat).collect::<Vec<_>>(),
             (bb_max_x - bb_min_x + 1),
             (bb_max_y - bb_min_y + 1),
@@ -443,7 +454,7 @@ fn main() {
             (0..hh).map(|y| {
                 let min = pats.iter().map(|pat| pat.contains(&(x, y))).min().unwrap();
                 let max = pats.iter().map(|pat| pat.contains(&(x, y))).max().unwrap();
-                min != max
+                (min != max) || forced_rotors.contains(&(x, y))
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>()
     });
